@@ -22,6 +22,8 @@ int currentState = MENU;
 int hitMode = 0;
 int draftMode = 0;
 int botUsed = 0;
+int animate = 1;
+long long nodes = 0;
 
 int isSafeBot(int grid[9][9], int row, int col, int num) {
     for (int x = 0; x <= 8; x++) {
@@ -273,23 +275,50 @@ void display() {
     glutSwapBuffers();
 }
 
-int solveSudokuBot(int grid[9][9], int row, int col) {
-    if (col == 9) {
-        row++;
-        col = 0;
+int solveSudokuBot(int grid[9][9]) {
+    nodes++;
+    int bestRow = -1, bestCol = -1, bestCount = 10;
+    unsigned int bestMask = 0;
+    for (int row = 0; row < 9; row++) {
+        int sr = row - row % 3;
+        for (int col = 0; col < 9; col++) {
+            if (grid[row][col] != 0) continue;
+            int sc = col - col % 3;
+            unsigned int used = 0;
+            for (int x = 0; x < 9; x++)
+                used |= (1u << grid[row][x]) | (1u << grid[x][col]);
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j < 3; j++)
+                    used |= 1u << grid[sr + i][sc + j];
+            unsigned cand = ~used & 0x3FEu;
+            if (cand == 0) return 0;
+
+            int count = 0;
+            for (unsigned int m = cand; m; m &= m - 1) {
+                count++;
+            }
+            if (count < bestCount) {
+                bestCount = count;
+                bestRow = row;
+                bestCol = col;
+                bestMask = cand;
+            }
+        }
     }
-    if (row == 9) return 1;
-    if (grid[row][col] > 0) return solveSudokuBot(grid, row, col + 1);
+    if (bestRow == -1) return 1;
     for (int num = 1; num <= 9; num++) {
-        if (isSafeBot(grid, row, col, num)) {
-            grid[row][col] = num;
+        if (!((bestMask >> num) & 1u)) continue;
+        grid[bestRow][bestCol] = num;
+        if (animate) {
             display();
             Sleep(5);
-            if (solveSudokuBot(grid, row, col + 1)) return 1;
         }
-        grid[row][col] = 0;
-        display();
-        Sleep(5);
+        if (solveSudokuBot(grid)) return 1;
+        grid[bestRow][bestCol] = 0;
+        if (animate) {
+            display();
+            Sleep(5);
+        }
     }
     return 0;
 }
@@ -399,7 +428,7 @@ void mouse(int button, int state, int x, int y) {
                         draftSud[i][j] = 0;
                     }
                 }
-                solveSudokuBot(sud, 0, 0);
+                solveSudokuBot(sud);
                 botUsed = 1;
             }
 

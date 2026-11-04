@@ -14,20 +14,30 @@
 int puzzles[3][N_PUZZLES][9][9];
 long long nodes;
 
-int solveBase(int grid[9][9], int row, int col) {
+int solveOpt(int grid[9][9]) {
     nodes++;
-    if (col == 9) {
-        row++;
-        col = 0;
-    }
-    if (row == 9) return 1;
-    if (grid[row][col] > 0) return solveBase(grid, row, col + 1);
-    for (int num = 1; num <= 9; num++) {
-        if (isSafeBot(grid, row, col, num)) {
-            grid[row][col] = num;
-            if (solveBase(grid, row, col + 1)) return 1;
+    int bestRow = -1, bestCol = -1, bestCount = 10;
+    for (int row = 0; row < 9; row++) {
+        for (int col = 0; col < 9; col++) {
+            if (grid[row][col] != 0) continue;
+            int count = 0;
+            for (int num = 1; num <= 9; num++) {
+                if (isSafeBot(grid, row, col, num)) count++;
+            }
+            if (count == 0) return 0;
+            if (count < bestCount) {
+                bestCount = count;
+                bestRow = row;
+                bestCol = col;
+            }
         }
-        grid[row][col] = 0;
+    }
+    if (bestRow == -1) return 1;
+    for (int num = 1; num <= 9; num++) {
+        if (!isSafeBot(grid, bestRow, bestCol, num)) continue;
+        grid[bestRow][bestCol] = num;
+        if (solveOpt(grid)) return 1;
+        grid[bestRow][bestCol] = 0;
     }
     return 0;
 }
@@ -60,7 +70,7 @@ int main(void) {
         for (int t = 0; t < N_PUZZLES; t++) {
             memcpy(work, puzzles[L][t], sizeof(work));
             nodes = 0;
-            solveBase(work, 0, 0);
+            solveOpt(work);
             perPuzzle[L][t] = nodes;
             sum += nodes;
             if (nodes > mx) mx = nodes;
@@ -73,14 +83,14 @@ int main(void) {
             sum / N_PUZZLES, sorted[N_PUZZLES / 2], mx);
     }
 
-    FILE* f = fopen("bench_base.csv", "w");
+    FILE* f = fopen("bench_result.csv", "w");
     if (f) {
         fprintf(f, "level,puzzle,calls\n");
         for (int L = 0; L < 3; L++)
             for (int t = 0; t < N_PUZZLES; t++)
                 fprintf(f, "%s,%d,%lld\n", names[L], t, perPuzzle[L][t]);
         fclose(f);
-        printf("\nPer-puzzle data written to bench_base.csv\n");
+        printf("\nPer-puzzle data written to bench_result.csv\n");
     }
     return 0;
 }
